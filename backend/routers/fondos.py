@@ -2,7 +2,7 @@
 from fastapi import APIRouter, HTTPException, Header
 from schemas.transaccion import OperacionFondo, SuscripcionResponse, TransaccionOut
 from typing import List
-from services.fondo_service import guardar_transaccion, esta_inscrito, cancelar_transaccion, obtener_historial
+from services.fondo_service import guardar_transaccion, esta_inscrito, cancelar_transaccion, obtener_historial, calcular_saldo_usuario
 
 
 router = APIRouter()
@@ -16,7 +16,7 @@ fondos_disponibles = {
     5: {"nombre": "FPV_EL CLIENTE_DINAMICA", "monto_min": 100000, "categoria": "FPV"},
 }
 
-saldo_usuario = 500000  # variable temporal
+
 
 
 @router.post("/suscribirse", response_model=SuscripcionResponse)
@@ -24,13 +24,13 @@ def suscribirse(
         data: OperacionFondo,
         x_user_id: str = Header(default="user-001")
     ):
-    global saldo_usuario
+    saldo_usuario = calcular_saldo_usuario(x_user_id)
 
     fondo = fondos_disponibles.get(data.id_fondo)
     if not fondo:
         raise HTTPException(status_code=404, detail="Fondo no encontrado")
 
-    if esta_inscrito("user-001", data.id_fondo):
+    if esta_inscrito(x_user_id, data.id_fondo):
         raise HTTPException(status_code=400, detail=f"Ya estás inscrito en el fondo {fondo['nombre']}")
 
     if saldo_usuario < fondo["monto_min"]:
@@ -73,7 +73,10 @@ def cancelar(
         data: OperacionFondo,
         x_user_id: str = Header(default="user-001") # ID de usuario simulado
     ):
+    
     fondo = fondos_disponibles.get(data.id_fondo)
+    saldo_usuario = calcular_saldo_usuario(x_user_id)
+    
     if not fondo:
         raise HTTPException(status_code=404, detail="Fondo no encontrado")
 
@@ -97,4 +100,9 @@ def historial(x_user_id: str = Header(default="user-001")): # ID de usuario simu
     if not transacciones:
         raise HTTPException(status_code=404, detail="No hay transacciones registradas")
     return transacciones
+
+@router.get("/saldo")
+def obtener_saldo(x_user_id: str = Header(default="user-001")):
+    saldo = calcular_saldo_usuario(x_user_id) 
+    return {"usuario_id": x_user_id, "saldo": saldo}
 

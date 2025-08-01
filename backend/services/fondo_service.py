@@ -26,7 +26,6 @@ def guardar_transaccion(usuario_id, tipo, fondo_id, fondo_nombre, valor, medio, 
     return transaccion.to_dict()
 
 def esta_inscrito(usuario_id, fondo_id):
-    tabla = dynamodb.Table("Transacciones")
     response = tabla.scan(
         FilterExpression="usuario_id = :uid AND fondo_id = :fid",
         ExpressionAttributeValues={
@@ -47,8 +46,6 @@ def esta_inscrito(usuario_id, fondo_id):
 
 
 def cancelar_transaccion(usuario_id, fondo_id):
-    tabla = dynamodb.Table("Transacciones")
-
     response = tabla.scan(
         FilterExpression="usuario_id = :uid AND fondo_id = :fid",
         ExpressionAttributeValues={
@@ -62,8 +59,6 @@ def cancelar_transaccion(usuario_id, fondo_id):
 
     ultima_apertura = next((t for t in ordenadas if t["tipo"] == "apertura"), None)
     ultima_cancelacion = next((t for t in ordenadas if t["tipo"] == "cancelacion"), None)
-
-    print(f"Última apertura: {ultima_apertura}, Última cancelación: {ultima_cancelacion}")
 
     if not ultima_apertura or (ultima_cancelacion and ultima_cancelacion["timestamp"] > ultima_apertura["timestamp"]):
         return None
@@ -87,9 +82,18 @@ def cancelar_transaccion(usuario_id, fondo_id):
     return transaccion.to_dict()
 
 def obtener_historial(usuario_id):
-    tabla = dynamodb.Table("Transacciones")
     response = tabla.scan(
         FilterExpression="usuario_id = :uid",
         ExpressionAttributeValues={":uid": usuario_id}
     )
     return response.get("Items", [])
+
+def calcular_saldo_usuario(usuario_id: str) -> int:
+    transacciones = obtener_historial(usuario_id)
+    saldo_inicial = 500000
+    for t in transacciones:
+        if t["tipo"] == "apertura":
+            saldo_inicial -= t["valor"]
+        elif t["tipo"] == "cancelacion":
+            saldo_inicial += t["valor"]
+    return saldo_inicial
