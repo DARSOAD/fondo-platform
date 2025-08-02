@@ -3,7 +3,7 @@ from services.notificacion_service import enviar_notificacion
 from db.dynamodb import dynamodb
 from models.transaccion_model import Transaccion
 
-tabla = dynamodb.Table("Transacciones")
+tabla = dynamodb.Table("transacciones")
 
 def guardar_transaccion(usuario_id, tipo, fondo_id, fondo_nombre, valor, medio, categoria):
     transaccion = Transaccion(
@@ -82,11 +82,30 @@ def cancelar_transaccion(usuario_id, fondo_id):
     return transaccion.to_dict()
 
 def obtener_historial(usuario_id):
+    """
+    Consulta las transacciones del usuario desde DynamoDB.
+
+    Actualmente limitado a un máximo de 10 registros recientes.
+
+    ✳️ NOTA: Para escalar a paginación real, esta función puede extenderse
+    con soporte a parámetros 'limit' y 'start_key', usando:
+    - Limit=<int>
+    - ExclusiveStartKey={'id': <last_id>, 'usuario_id': <user_id>}
+    """
+
     response = tabla.scan(
         FilterExpression="usuario_id = :uid",
         ExpressionAttributeValues={":uid": usuario_id}
     )
-    return response.get("Items", [])
+
+    items = response.get("Items", [])
+
+    # Ordenar manualmente por timestamp descendente (más recientes primero)
+    items.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+
+    # Limitar a las 10 transacciones más recientes
+    return items[:10]
+
 
 def calcular_saldo_usuario(usuario_id: str) -> int:
     transacciones = obtener_historial(usuario_id)

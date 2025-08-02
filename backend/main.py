@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from routers import fondos
 
 app = FastAPI(
@@ -7,10 +8,27 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Cargar el router de fondos
+# Definir los orígenes permitidos (frontend)
+origins = [
+    "http://localhost:3000",
+]
+
+# Aplicar middleware CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Cargar rutas del router
 app.include_router(fondos.router, prefix="/fondos", tags=["Fondos"])
 
-# Endpoint de prueba
 @app.get("/")
-def read_root():
-    return {"mensaje": "API funcionando correctamente"} 
+def read_root(request: Request):
+    base_url = str(request.base_url)
+    return {
+        "description": "La url de la documentación es la siguiente",
+        "url": f"{base_url}docs"
+    }

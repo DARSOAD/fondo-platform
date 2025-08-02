@@ -1,0 +1,59 @@
+## backend-template.yaml
+Resources:
+  TransaccionesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: transacciones
+      AttributeDefinitions:
+        - AttributeName: usuario_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: usuario_id
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+  BackendAppRunnerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: fondos-backend-apprunner-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: apprunner.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: DynamoDBAccessPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                Resource: "*"
+
+  BackendAppRunnerService:
+    Type: AWS::AppRunner::Service
+    Properties:
+      ServiceName: fondos-backend-service
+      SourceConfiguration:
+        ImageRepository:
+          ImageIdentifier: "123456789012.dkr.ecr.us-east-1.amazonaws.com/fondos-backend:latest"
+          ImageRepositoryType: ECR
+        AutoDeploymentsEnabled: true
+        Port: "8000"
+      InstanceConfiguration:
+        Cpu: "1024"
+        Memory: "2048"
+        InstanceRoleArn: !GetAtt BackendAppRunnerRole.Arn
