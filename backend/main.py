@@ -8,7 +8,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Definir los orígenes permitidos (frontend)
+# Definir los orígenes permitidos (frontend), ajustar según sea necesario
 origins = [
     "http://localhost:3000",
 ]
