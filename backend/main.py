@@ -10,7 +10,7 @@ app = FastAPI(
 
 # Definir los orígenes permitidos (frontend), ajustar según sea necesario
 origins = [
-    "http://localhost:3000",
+    "https://d3pi3yawthduvi.cloudfront.net",
 ]
 
 # Aplicar middleware CORS
@@ -32,3 +32,4 @@ def read_root(request: Request):
         "description": "La url de la documentación es la siguiente",
         "url": f"{base_url}docs"
     }
+

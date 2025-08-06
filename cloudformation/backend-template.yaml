@@ -1,5 +1,9 @@
-## backend-template.yaml
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Infraestructura para backend de fondos en FastAPI usando App Runner + DynamoDB + SES/SNS
+
 Resources:
+
+  # 🔹 Tabla DynamoDB
   TransaccionesTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -17,7 +21,11 @@ Resources:
       ProvisionedThroughput:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
+      Tags:
+        - Key: Project
+          Value: FondosApp
 
+  # 🔹 Rol IAM para App Runner con permisos a ECR, DynamoDB, SES y SNS
   BackendAppRunnerRole:
     Type: AWS::IAM::Role
     Properties:
@@ -27,13 +35,17 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              Service: apprunner.amazonaws.com
+              Service:
+                - build.apprunner.amazonaws.com
+                - tasks.apprunner.amazonaws.com
+
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: DynamoDBAccessPolicy
+        - PolicyName: BackendAccessPolicy
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
+              # DynamoDB
               - Effect: Allow
                 Action:
                   - dynamodb:PutItem
@@ -41,19 +53,61 @@ Resources:
                   - dynamodb:UpdateItem
                   - dynamodb:Scan
                   - dynamodb:Query
+                Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/transacciones"
+
+              # SES
+              - Effect: Allow
+                Action:
+                  - ses:SendEmail
+                  - ses:SendRawEmail
                 Resource: "*"
 
+              # SNS
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: "*"
+
+              # ECR (requerido por App Runner para imagen privada)
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchGetImage
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchCheckLayerAvailability
+                Resource: "*"
+
+  # 🔹 Servicio App Runner
   BackendAppRunnerService:
     Type: AWS::AppRunner::Service
+    DependsOn: BackendAppRunnerRole
     Properties:
       ServiceName: fondos-backend-service
       SourceConfiguration:
+        AuthenticationConfiguration:
+          AccessRoleArn: !Sub arn:aws:iam::${AWS::AccountId}:role/fondos-backend-apprunner-role
         ImageRepository:
-          ImageIdentifier: "123456789012.dkr.ecr.us-east-1.amazonaws.com/fondos-backend:latest"
+          ImageIdentifier: "985898635541.dkr.ecr.us-east-1.amazonaws.com/fondos-backend:latest"
           ImageRepositoryType: ECR
-        AutoDeploymentsEnabled: true
-        Port: "8000"
+          ImageConfiguration:
+            Port: "8000"
+            RuntimeEnvironmentVariables:
+              - Name: AWS_REGION
+                Value: "us-east-1"
+              - Name: TABLE_NAME
+                Value: "transacciones"
+              - Name: SES_SOURCE_EMAIL
+                Value: "no-reply@diegoan.com"
       InstanceConfiguration:
         Cpu: "1024"
         Memory: "2048"
-        InstanceRoleArn: !GetAtt BackendAppRunnerRole.Arn
+        InstanceRoleArn: !Sub arn:aws:iam::${AWS::AccountId}:role/fondos-backend-apprunner-role
+
+Outputs:
+  BackendServiceURL:
+    Description: URL pública del backend desplegado
+    Value: !GetAtt BackendAppRunnerService.ServiceUrl
+
+  DynamoDBTableName:
+    Description: Nombre de la tabla DynamoDB
+    Value: !Ref TransaccionesTable

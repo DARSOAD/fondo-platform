@@ -1,29 +1,43 @@
 # backend/services/fondo_service.py
+
+from fastapi import HTTPException
 from services.notificacion_service import enviar_notificacion
 from db.dynamodb import dynamodb
 from models.transaccion_model import Transaccion
 
 tabla = dynamodb.Table("transacciones")
 
-def guardar_transaccion(usuario_id, tipo, fondo_id, fondo_nombre, valor, medio, categoria):
-    transaccion = Transaccion(
-        usuario_id=usuario_id,
-        tipo=tipo,
-        fondo_id=fondo_id,
-        fondo_nombre=fondo_nombre,
-        valor=valor,
-        medio=medio,
-        categoria=categoria
-    )
-
+def guardar_transaccion(usuario_id, tipo, fondo_id, fondo_nombre, valor, medio, categoria, usuario_contacto):
     try:
+        transaccion = Transaccion(
+            usuario_id=usuario_id,
+            tipo=tipo,
+            fondo_id=fondo_id,
+            fondo_nombre=fondo_nombre,
+            valor=valor,
+            medio=medio,
+            categoria=categoria,
+            usuario_contacto=usuario_contacto  
+        )
+
         tabla.put_item(Item=transaccion.to_dict())
-        enviar_notificacion(usuario_id, medio, f"Te suscribiste al fondo {fondo_nombre}")
+
+        enviar_notificacion(medio, f"Te suscribiste al fondo {fondo_nombre}", usuario_contacto)
+
+        return transaccion.to_dict()
+
+    except TypeError as te:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Error en la creación de la transacción: {str(te)}"
+        )
 
     except Exception as e:
-        raise Exception(f"Error al guardar transacción en DynamoDB: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error interno al guardar la transacción: {str(e)}"
+        )
 
-    return transaccion.to_dict()
 
 def esta_inscrito(usuario_id, fondo_id):
     response = tabla.scan(
@@ -45,7 +59,7 @@ def esta_inscrito(usuario_id, fondo_id):
     return ultima["tipo"] == "apertura"
 
 
-def cancelar_transaccion(usuario_id, fondo_id):
+def cancelar_transaccion(usuario_id, fondo_id, usuario_contacto, medio):
     response = tabla.scan(
         FilterExpression="usuario_id = :uid AND fondo_id = :fid",
         ExpressionAttributeValues={
@@ -69,13 +83,14 @@ def cancelar_transaccion(usuario_id, fondo_id):
         fondo_id=fondo_id,
         fondo_nombre=ultima_apertura["fondo_nombre"],
         valor=ultima_apertura["valor"],
-        medio="email",  
-        categoria=ultima_apertura["categoria"]
+        medio=medio,  
+        categoria=ultima_apertura["categoria"],
+        usuario_contacto=usuario_contacto
     )
 
     try:
         tabla.put_item(Item=transaccion.to_dict())
-        enviar_notificacion(usuario_id, transaccion.medio, f"Cancelaste tu suscripción al fondo {transaccion.fondo_nombre}")
+        enviar_notificacion(transaccion.medio, f"Cancelaste tu suscripción al fondo {transaccion.fondo_nombre}", usuario_contacto)
     except Exception as e:
         raise Exception(f"Error al guardar transacción de cancelación en DynamoDB: {str(e)}")
 

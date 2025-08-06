@@ -9,15 +9,24 @@ Resources:
       WebsiteConfiguration:
         IndexDocument: index.html
         ErrorDocument: index.html
-      AccessControl: PublicRead
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: false
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: false
 
   BucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
       Bucket: !Ref FrontendBucket
       PolicyDocument:
+        Version: "2012-10-17"
         Statement:
-          - Effect: Allow
+          - Sid: PublicReadGetObject
+            Effect: Allow
             Principal: "*"
             Action: "s3:GetObject"
             Resource: !Sub "${FrontendBucket.Arn}/*"

@@ -1,12 +1,13 @@
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { suscripcionSchema, SuscripcionFormData } from '@/schemas/suscripcion.schema';
+import { transactionSchema, TransactionFormData } from '@/schemas/transaction.schema';
 import { suscribirseAFondo } from '@/services/fondosService';
 import { fondos } from '@/utils/fondosList';
 import { useUser } from '@/context/UserContext';
 import { useState } from 'react';
+import NotificacionFields from '@/components/molecules/NotificacionFields';
 
 import Modal from '@/components/molecules/Modal';
 import Select from '@/components/atoms/Select';
@@ -19,13 +20,11 @@ export default function SuscripcionForm() {
   const [modalMensaje, setModalMensaje] = useState('');
   const [modalTitulo, setModalTitulo] = useState('');
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<SuscripcionFormData>({ resolver: zodResolver(suscripcionSchema) });
+  const methods = useForm<TransactionFormData>({
+    resolver: zodResolver(transactionSchema),
+  });
 
-  const onSubmit = async (data: SuscripcionFormData) => {
+  const onSubmit = async (data: TransactionFormData) => {
     try {
       const result = await suscribirseAFondo(userId, data);
       await actualizarSaldo();
@@ -36,7 +35,7 @@ export default function SuscripcionForm() {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const status = error.response?.status;
-    
+
         if (status === 400) {
           setModalTitulo('Error de solicitud');
           setModalMensaje(error.response?.data?.detail || 'Solicitud no válida.');
@@ -44,41 +43,44 @@ export default function SuscripcionForm() {
           setModalTitulo('Error inesperado');
           setModalMensaje('Ocurrió un error inesperado. Intenta nuevamente más tarde.');
         }
-    
+
         setModalAbierto(true);
         console.warn('Solicitud rechazada con status', status);
       } else {
         console.error('Error desconocido', error);
       }
     }
-    
   };
 
   return (
     <>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <Select
-          {...register('id_fondo', { valueAsNumber: true })}
-          options={fondos.map((f) => ({
-            value: f.id,
-            label: `${f.nombre} (Desde COP $${f.valor_minimo.toLocaleString('es-CO')})`,
-          }))}
-          placeholder="Selecciona un fondo"
-          error={errors.id_fondo?.message}
-        />
+      <FormProvider {...methods}>
+        <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-4">
+          <Select
+            {...methods.register('id_fondo', { valueAsNumber: true })}
+            options={fondos.map((f) => ({
+              value: f.id,
+              label: `${f.nombre} (Desde COP $${f.valor_minimo.toLocaleString('es-CO')})`,
+            }))}
+            placeholder="Selecciona un fondo"
+            error={methods.formState.errors.id_fondo?.message}
+          />
 
-        <Select
-          {...register('medio_notificacion')}
-          options={[
-            { value: 'email', label: 'Email' },
-            { value: 'sms', label: 'SMS' },
-          ]}
-          placeholder="Seleccione el medio de notificación"
-          error={errors.medio_notificacion?.message}
-        />
+          <Select
+            {...methods.register('medio_notificacion')}
+            options={[
+              { value: 'email', label: 'Email' },
+              { value: 'sms', label: 'SMS' },
+            ]}
+            placeholder="Seleccione el medio de notificación"
+            error={methods.formState.errors.medio_notificacion?.message}
+          />
 
-        <Button type="submit" label="Suscribirse" />
-      </form>
+          <NotificacionFields />
+
+          <Button type="submit" label="Suscribirse" />
+        </form>
+      </FormProvider>
 
       <Modal
         isOpen={modalAbierto}

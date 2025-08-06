@@ -1,32 +1,26 @@
 #!/bin/bash
+
 set -e
 
-STACK_NAME=frontend-stack
-REGION=us-east-1
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-BUCKET_NAME="nextjs-frontend-${ACCOUNT_ID}"
+# Compilar y exportar el frontend
+export NEXT_PUBLIC_API_URL=https://bzmy2vsin3.us-east-1.awsapprunner.com
+NODE_ENV=production npm run build
 
-echo " Ejecutando build del frontend..."
-npm install
-npm run build
-npx next export
-
-echo " Desplegando infraestructura CloudFormation..."
+# Crear el stack (bucket + CDN)
 aws cloudformation deploy \
-  --stack-name $STACK_NAME \
   --template-file ../cloudformation/frontend-template.yaml \
-  --capabilities CAPABILITY_NAMED_IAM \
-  --region $REGION
+  --stack-name frontend-stack \
+  --capabilities CAPABILITY_NAMED_IAM
 
-echo " Limpiando contenido antiguo en el bucket..."
-aws s3 rm s3://$BUCKET_NAME --recursive
+# Subir los archivos generados a S3
+aws s3 sync out/ s3://nextjs-frontend-985898635541 --delete # Cambia el nombre del bucket según tu configuración
 
-echo " Subiendo el frontend (carpeta out/) a S3..."
-aws s3 cp out/ s3://$BUCKET_NAME --recursive
+# Paso 4: (opcional) Invalidate CloudFront cache
+DIST_ID=$(aws cloudformation describe-stacks \
+  --stack-name frontend-stack \
+  --query "Stacks[0].Outputs[?OutputKey=='CloudFrontURL'].OutputValue" \
+  --output text | awk -F/ '{print $3}')
 
-echo " Sitio desplegado correctamente. URLs:"
-aws cloudformation describe-stacks \
-  --stack-name $STACK_NAME \
-  --region $REGION \
-  --query "Stacks[0].Outputs[*].[OutputKey,OutputValue]" \
-  --output table
+aws cloudfront create-invalidation \
+  --distribution-id $DIST_ID \
+  --paths "/*"

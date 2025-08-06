@@ -22,7 +22,7 @@ fondos_disponibles = {
 @router.post("/suscribirse", response_model=SuscripcionResponse)
 def suscribirse(
         data: OperacionFondo,
-        x_user_id: str = Header(default="user-001")
+        x_user_id: str = Header(default="user-001") 
     ):
     saldo_usuario = calcular_saldo_usuario(x_user_id)
 
@@ -48,7 +48,8 @@ def suscribirse(
         fondo_nombre=fondo["nombre"],
         valor=fondo["monto_min"],
         medio=data.medio_notificacion,
-        categoria=fondo["categoria"]
+        categoria=fondo["categoria"],
+        usuario_contacto=data.usuario_contacto
     )
 
     return {
@@ -71,7 +72,7 @@ def eliminar_transaccion(transaccion_id: str):
 @router.post("/cancelar", response_model=SuscripcionResponse)
 def cancelar(
         data: OperacionFondo,
-        x_user_id: str = Header(default="user-001") # ID de usuario simulado
+        x_user_id: str = Header(default="user-001"), # ID de usuario simulado
     ):
     
     fondo = fondos_disponibles.get(data.id_fondo)
@@ -82,7 +83,9 @@ def cancelar(
 
     resultado = cancelar_transaccion(
         usuario_id=x_user_id,
-        fondo_id=data.id_fondo
+        fondo_id=data.id_fondo,
+        usuario_contacto=data.usuario_contacto,
+        medio=data.medio_notificacion
     )
 
     if not resultado:

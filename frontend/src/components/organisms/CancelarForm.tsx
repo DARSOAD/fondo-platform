@@ -1,6 +1,6 @@
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useUser } from '@/context/UserContext';
 import { cancelarFondo } from '@/services/fondosService';
@@ -10,10 +10,10 @@ import { useState } from 'react';
 import Select from '@/components/atoms/Select';
 import Button from '@/components/atoms/Button';
 import Modal from '@/components/molecules/Modal';
+import NotificacionFields from '@/components/molecules/NotificacionFields';
 import axios from 'axios';
-import { cancelarSchema, CancelarFormData } from '@/schemas/cancelar.schema';  
 
-
+import { transactionSchema, TransactionFormData } from '@/schemas/transaction.schema';
 
 export default function CancelarForm() {
   const { userId, actualizarSaldo } = useUser();
@@ -21,13 +21,11 @@ export default function CancelarForm() {
   const [modalTitulo, setModalTitulo] = useState('');
   const [modalMensaje, setModalMensaje] = useState('');
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<CancelarFormData>({ resolver: zodResolver(cancelarSchema) });
+  const methods = useForm<TransactionFormData>({
+    resolver: zodResolver(transactionSchema),
+  });
 
-  const onSubmit = async (data: CancelarFormData) => {
+  const onSubmit = async (data: TransactionFormData) => {
     try {
       const result = await cancelarFondo(userId, data);
       await actualizarSaldo();
@@ -57,19 +55,37 @@ export default function CancelarForm() {
 
   return (
     <>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <Select
-          {...register('id_fondo', { valueAsNumber: true })}
-          options={fondos.map((f) => ({
-            value: f.id,
-            label: `${f.nombre} (Desde COP $${f.valor_minimo.toLocaleString('es-CO')})`,
-          }))}
-          placeholder="Selecciona el fondo a cancelar"
-          error={errors.id_fondo?.message}
-        />
+      <FormProvider {...methods}>
+        <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-4">
+          <Select
+            {...methods.register('id_fondo', { valueAsNumber: true })}
+            options={fondos.map((f) => ({
+              value: f.id,
+              label: `${f.nombre} (Desde COP $${f.valor_minimo.toLocaleString('es-CO')})`,
+            }))}
+            placeholder="Selecciona el fondo a cancelar"
+            error={methods.formState.errors.id_fondo?.message}
+          />
 
-        <Button type="submit" label="Cancelar Suscripción" className="bg-red-600 hover:bg-red-700" />
-      </form>
+          <Select
+            {...methods.register('medio_notificacion')}
+            options={[
+              { value: 'email', label: 'Email' },
+              { value: 'sms', label: 'SMS' },
+            ]}
+            placeholder="Seleccione el medio de notificación"
+            error={methods.formState.errors.medio_notificacion?.message}
+          />
+
+          <NotificacionFields /> 
+
+          <Button
+            type="submit"
+            label="Cancelar Suscripción"
+            className="bg-red-600 hover:bg-red-700"
+          />
+        </form>
+      </FormProvider>
 
       <Modal
         isOpen={modalAbierto}

@@ -1,7 +1,9 @@
-import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  output: "export",
-};
+const nextConfig = {
+  output: 'export', // Habilita modo estático
+  images: {
+    unoptimized: true, // Necesario si usas <Image>
+  },
+}
 
-export default nextConfig;
+module.exports = nextConfig

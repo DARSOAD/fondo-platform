@@ -3,7 +3,7 @@ from datetime import datetime
 import uuid
 
 class Transaccion:
-    def __init__(self, usuario_id, tipo, fondo_id, fondo_nombre, valor, medio, categoria):
+    def __init__(self, usuario_id, tipo, fondo_id, fondo_nombre, valor, medio, categoria, usuario_contacto):
         self.id = str(uuid.uuid4())
         self.usuario_id = usuario_id
         self.tipo = tipo  # "apertura" o "cancelación"
@@ -13,6 +13,7 @@ class Transaccion:
         self.medio = medio  # "email" o "sms"
         self.timestamp = datetime.utcnow().isoformat()
         self.categoria = categoria
+        self.usuario_contacto = usuario_contacto
 
     def to_dict(self):
         return {
@@ -24,5 +25,6 @@ class Transaccion:
             "valor": self.valor,
             "medio": self.medio,
             "timestamp": self.timestamp,
-            "categoria": self.categoria
+            "categoria": self.categoria,
+            "usuario_contacto": self.usuario_contacto
         }

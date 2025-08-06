@@ -3,7 +3,15 @@ import { defaultHeaders } from '@/utils/headers';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-export const suscribirseAFondo = async (userId: string, data: { id_fondo: number; medio_notificacion: string }) => {
+console.log("API_URL (compilado):", API_URL);
+
+export const suscribirseAFondo = async (
+  userId: string, 
+  data: { 
+    id_fondo: number; 
+    medio_notificacion: string;
+    usuario_contacto: string;
+  }) => {
   const response = await axios.post(`${API_URL}/fondos/suscribirse`, data, defaultHeaders(userId));
   return response.data;
 };
@@ -15,7 +23,11 @@ export const usuarioSaldo = async (userId: string) => {
 
 export const cancelarFondo = async (
   userId: string,
-  data: { id_fondo: number }
+  data: { 
+    id_fondo: number;
+    medio_notificacion: string;
+    usuario_contacto: string;
+  }
 ) => {
   const response = await axios.post(`${API_URL}/fondos/cancelar`, data, defaultHeaders(userId));
   return response.data;
